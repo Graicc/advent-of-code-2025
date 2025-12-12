@@ -1,4 +1,6 @@
-from functools import cache
+from itertools import product
+import numpy as np
+from scipy.optimize import linprog
 
 lines = [
     (line.split()[0], line.split()[1:-1], line.split()[-1])
@@ -6,29 +8,18 @@ lines = [
 ]
 lines = [
     (
-        tuple([x == "#" for x in target[1:-1]]),
-        tuple([tuple([int(x) for x in button[1:-1].split(",")]) for button in buttons]),
-        tuple([int(x) for x in joltage[1:-1].split(",")]),
+        [x == "#" for x in target[1:-1]],
+        [[int(x) for x in button[1:-1].split(",")] for button in buttons],
+        [int(x) for x in joltage[1:-1].split(",")],
     )
     for (target, buttons, joltage) in lines
 ]
 
-# @cache
-# def solve(target: tuple[bool], buttons: tuple[set[int]]) -> int:
-#     # Click this button
-
-
-#     # Skip this button
-
-# print(lines)
-
-
-from itertools import product
-
+## Part 1
 total = 0
 for target, buttons, _ in lines:
-    # print(target, buttons)
-    perms = product(*([False, True] for _ in range(len(buttons))))
+    perms = product(*[[False, True] for _ in range(len(buttons))])
+
     ans = 99999
     for perm in perms:
         curr = [False for _ in range(len(target))]
@@ -38,57 +29,34 @@ for target, buttons, _ in lines:
             for i in b:
                 curr[i] = not curr[i]
 
-        # print(curr, target)
-        if tuple(curr) == target:
+        if curr == target:
             ans = min(ans, len(bs))
 
     if ans == 99999:
         print("ERROR")
-    # print(ans)
+
     total += ans
 
 print(total)
-print("")
 
 
-from functools import lru_cache
+## Part 2
+def solve(buttons: list[list[int]], joltage: list[int]) -> int:
+    # print(buttons)
+    # print(joltage)
+    # minimize button presses using linear programming
+    num_buttons = len(buttons)
+    num_joltage = len(joltage)
+    c = np.ones(num_buttons)
+
+    A_eq = np.zeros((num_joltage, num_buttons))
+    for i, button in enumerate(buttons):
+        A_eq[:, i] = [1 if x in button else 0 for x in range(num_joltage)]
+
+    b_eq = joltage
+
+    res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=(0, None), integrality=1)
+    return int(res.fun)
 
 
-# @lru_cache
-# def solve(buttons: tuple[tuple[int]], remaining_joltage: tuple[int]) -> int:
-#     if sum(remaining_joltage) == 0:
-#         return 0
-
-#     # min over all button presses
-#     val = 99999
-#     for button in buttons:
-#         this_joltage = list(remaining_joltage)
-#         for b in button:
-#             this_joltage[b] -= 1
-
-#         # invalid
-#         if any([x < 0 for x in this_joltage]):
-#             continue
-
-#         this_val = solve(buttons, tuple(this_joltage))
-#         val = min(val, this_val)
-
-#     return val + 1
-
-@lru_cache
-def solve(buttons: tuple[tuple[int]], remaining_joltage: tuple[int]) -> int:
-    if sum(remaining_joltage) == 0:
-        return 0
-
-    
-
-
-
-total = 0
-
-for _, buttons, joltage in lines:
-    val = solve(buttons, joltage)
-    print(val)
-    total += val
-
-print(total)
+print(sum([solve(buttons, joltage) for (_, buttons, joltage) in lines]))
